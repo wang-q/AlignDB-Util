@@ -241,15 +241,15 @@ sub pair_seq_stat {
     }
     my $pi = $number_of_differences / $number_of_comparable_bases;
 
-    my $first_seq_gc  = calc_gc_ratio($first_seq);
-    my $second_seq_gc = calc_gc_ratio($second_seq);
+    my $first_seq_gc = calc_gc_ratio($first_seq);
+    my $average_gc = calc_gc_ratio( $first_seq, $second_seq );
 
     return [
         $seq_legnth,            $number_of_comparable_bases,
         $number_of_identities,  $number_of_differences,
         $number_of_gaps,        $number_of_n,
         $number_of_align_error, $pi,
-        $first_seq_gc,          $second_seq_gc,
+        $first_seq_gc,          $average_gc,
     ];
 }
 
@@ -516,15 +516,15 @@ sub pair_indel_sites {
             }
         }
 
-        my $indel_gc_ratio = &calc_gc_ratio($indel_seq);
+        my $indel_gc = &calc_gc_ratio($indel_seq);
         push @indel_sites,
             {
-            insert   => $indel_insert,
-            length   => $indel_length,
-            start    => $indel_start,
-            end      => $indel_end,
-            seq      => $indel_seq,
-            gc_ratio => $indel_gc_ratio,
+            insert => $indel_insert,
+            length => $indel_length,
+            start  => $indel_start,
+            end    => $indel_end,
+            seq    => $indel_seq,
+            gc     => $indel_gc,
             };
     }
 
