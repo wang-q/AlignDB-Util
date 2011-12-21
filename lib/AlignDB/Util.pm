@@ -727,7 +727,8 @@ sub clustal_align {
         );
     }
     my $aln_factory;
-    $aln_factory = Bio::Tools::Run::Alignment::Clustalw->new(@params);
+    $aln_factory = Bio::Tools::Run::Alignment::Clustalw->new( @params,
+        -verbose => -1 );
     unless ( $aln_factory->executable ) {
         die "Could not find the executable for ClustalW\n";
     }
@@ -768,16 +769,20 @@ sub multi_align {
 
     my $aln_factory;
     if ( $aln_prog =~ /clus/i ) {
-        $aln_factory = Bio::Tools::Run::Alignment::Clustalw->new();
+        $aln_factory
+            = Bio::Tools::Run::Alignment::Clustalw->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /t\_?cof/i ) {
-        $aln_factory = Bio::Tools::Run::Alignment::TCoffee->new();
+        $aln_factory
+            = Bio::Tools::Run::Alignment::TCoffee->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /musc/i ) {
-        $aln_factory = Bio::Tools::Run::Alignment::Muscle->new();
+        $aln_factory
+            = Bio::Tools::Run::Alignment::Muscle->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /maff/i ) {
-        $aln_factory = Bio::Tools::Run::Alignment::MAFFT->new();
+        $aln_factory
+            = Bio::Tools::Run::Alignment::MAFFT->new( -verbose => -1 );
     }
     else {
         confess "Provide clustalw, tcoffee, muscle or mafft"
