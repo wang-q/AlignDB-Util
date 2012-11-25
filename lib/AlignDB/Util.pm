@@ -298,7 +298,8 @@ sub multi_seq_stat {
             $seq_legnth,           $number_of_comparable_bases,
             $number_of_identities, $number_of_differences,
             $number_of_gaps,       $number_of_n,
-            $seq_legnth,           'NULL',
+            $seq_legnth,           undef,
+            undef,                 undef,
         ];
     }
 
@@ -727,8 +728,8 @@ sub clustal_align {
         );
     }
     my $aln_factory;
-    $aln_factory = Bio::Tools::Run::Alignment::Clustalw->new( @params,
-        -verbose => -1 );
+    $aln_factory
+        = Bio::Tools::Run::Alignment::Clustalw->new( @params, -verbose => -1 );
     unless ( $aln_factory->executable ) {
         die "Could not find the executable for ClustalW\n";
     }
@@ -781,8 +782,7 @@ sub multi_align {
             = Bio::Tools::Run::Alignment::Muscle->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /maff/i ) {
-        $aln_factory
-            = Bio::Tools::Run::Alignment::MAFFT->new( -verbose => -1 );
+        $aln_factory = Bio::Tools::Run::Alignment::MAFFT->new( -verbose => -1 );
     }
     else {
         confess "Provide clustalw, tcoffee, muscle or mafft"
@@ -941,8 +941,7 @@ sub revcom {
     my $seq = shift;
 
     _ref2str( \$seq );
-    $seq
-        =~ tr/ACGTMRWSYKVHDBNacgtmrwsykvhdbn-/TGCAKYSWRMBDHVNtgcakyswrmbdhvn-/;
+    $seq =~ tr/ACGTMRWSYKVHDBNacgtmrwsykvhdbn-/TGCAKYSWRMBDHVNtgcakyswrmbdhvn-/;
     my $seq_rc = reverse $seq;
 
     return $seq_rc;
