@@ -141,17 +141,16 @@ sub calc_gc_ratio {
 
     for my $seq (@seqs) {
         _ref2str( \$seq );
-        $seq = uc $seq;
     }
 
     my @ratios;
     for my $seq (@seqs) {
 
         # Count all four bases
-        my $a_count = $seq =~ tr/A/A/;
-        my $g_count = $seq =~ tr/G/G/;
-        my $c_count = $seq =~ tr/C/C/;
-        my $t_count = $seq =~ tr/T/T/;
+        my $a_count = $seq =~ tr/Aa/Aa/;
+        my $g_count = $seq =~ tr/Gg/Gg/;
+        my $c_count = $seq =~ tr/Cc/Cc/;
+        my $t_count = $seq =~ tr/Tt/Tt/;
 
         my $four_count = $a_count + $g_count + $c_count + $t_count;
         my $gc_count   = $g_count + $c_count;
@@ -269,7 +268,7 @@ sub multi_seq_stat {
         = (0) x 6;
     for my $pos ( 1 .. $seq_legnth ) {
         my @bases = ();
-        foreach (@seqs) {
+        for (@seqs) {
             my $nt = substr( $_, $pos - 1, 1 );
             push @bases, $nt;
         }
