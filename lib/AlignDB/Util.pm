@@ -500,7 +500,7 @@ sub pair_indel_sites {
             $indel_seq    = $first_indel_seq;
         }
         else {
-            my $first_gap  = $first_indel_seq  =~ tr/-/-/;
+            my $first_gap  = $first_indel_seq =~ tr/-/-/;
             my $second_gap = $second_indel_seq =~ tr/-/-/;
             if ( $first_gap < $second_gap ) {
                 $indel_insert = 'D';
@@ -1021,12 +1021,14 @@ sub stat_result {
 }
 
 sub mean {
+    @_ = grep { defined $_ } @_;
     return unless @_;
     return $_[0] unless @_ > 1;
     return sum(@_) / scalar(@_);
 }
 
 sub median {
+    @_ = grep { defined $_ } @_;
     return unless @_;
     return $_[0] unless @_ > 1;
     @_ = sort { $a <=> $b } @_;
@@ -1036,6 +1038,7 @@ sub median {
 }
 
 sub variance {
+    @_ = grep { defined $_ } @_;
     return   unless @_;
     return 0 unless @_ > 1;
     my $mean = mean(@_);
@@ -1043,6 +1046,7 @@ sub variance {
 }
 
 sub stddev {
+    @_ = grep { defined $_ } @_;
     return   unless @_;
     return 0 unless @_ > 1;
     return sqrt variance(@_);
