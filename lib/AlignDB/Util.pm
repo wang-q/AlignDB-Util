@@ -8,6 +8,7 @@ use Carp;
 use YAML qw(Dump Load DumpFile LoadFile);
 
 use File::Slurp;
+use Path::Tiny;
 use List::Util qw(first max maxstr min minstr reduce shuffle sum);
 use List::MoreUtils qw(firstidx all any uniq );
 use Math::Combinatorics;
@@ -30,25 +31,14 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 %EXPORT_TAGS = (
     all => [
         qw{
-            calc_gc_ratio
-            pair_seq_stat         multi_seq_stat
-            pair_snp_sites        multi_snp_site
-            single_indel_sites    pair_indel_sites
-            find_indel_set
-            ref_indel_type        ref_pair_D
-            clustal_align         multi_align
-            random_sampling
-            combi_k_n
-            enumComb              k_nuc_permu
-            k_nuc_count           k_nuc_incr
-            revcom                seq_length
-            average
-            sampling_with_replacement
-            random_number         stat_result
-            mean                  median
-            variance              stddev
-            read_fasta
-            },
+            calc_gc_ratio pair_seq_stat multi_seq_stat pair_snp_sites
+            multi_snp_site single_indel_sites pair_indel_sites find_indel_set
+            ref_indel_type ref_pair_D clustal_align multi_align random_sampling
+            combi_k_n enumComb k_nuc_permu k_nuc_count k_nuc_incr revcom
+            seq_length average sampling_with_replacement random_number
+            stat_result mean median variance stddev read_fasta trim_pure_dash
+            trim_head_tail trim_outgroup trim_complex_indel change_name_chopped
+            read_sizes string_to_set },
     ],
 );
 
@@ -940,7 +930,7 @@ sub revcom {
     my $seq = shift;
 
     _ref2str( \$seq );
-    $seq =~ tr/ACGTMRWSYKVHDBNacgtmrwsykvhdbn-/TGCAKYSWRMBDHVNtgcakyswrmbdhvn-/;
+    $seq =~ tr/ACGTMRWSYKVHDBNacgtmrwsykvhdbn-/TGCAKYWSRMBDHVNtgcakywsrmbdhvn-/;
     my $seq_rc = reverse $seq;
 
     return $seq_rc;
@@ -1077,6 +1067,320 @@ sub read_fasta {
     }
 
     return ( \%seqs, \@seq_names );
+}
+
+#----------------------------#
+# trim header and footer pure dash regions
+#----------------------------#
+sub trim_pure_dash {
+    my $seq_of    = shift;
+    my $seq_names = shift;
+
+    # header indels
+    while (1) {
+        my @first_column;
+        for ( @{$seq_names} ) {
+            my $first_base = substr( $seq_of->{$_}, 0, 1 );
+            push @first_column, $first_base;
+        }
+        if ( all { $_ eq '-' } @first_column ) {
+            for ( @{$seq_names} ) {
+                my $base = substr( $seq_of->{$_}, 0, 1, '' );
+            }
+        }
+        else {
+            last;
+        }
+    }
+
+    # footer indels
+    while (1) {
+        my (@last_column);
+        for ( @{$seq_names} ) {
+            my $last_base = substr( $seq_of->{$_}, -1, 1 );
+            push @last_column, $last_base;
+        }
+        if ( all { $_ eq '-' } @last_column ) {
+            for ( @{$seq_names} ) {
+                my $base = substr( $seq_of->{$_}, -1, 1, '' );
+            }
+        }
+        else {
+            last;
+        }
+    }
+
+    return;
+}
+
+#----------------------------#
+# trim head and tail indels
+#----------------------------#
+#  If head length set to 1, the first indel will be trimmed
+#  Length set to 5 and the second indel will also be trimmed
+#   GAAA--C
+#   --AAAGC
+#   GAAAAGC
+sub trim_head_tail {
+    my $seq_of      = shift;
+    my $seq_names   = shift;
+    my $head_length = shift;    # indels in this region will also be trimmed
+    my $tail_length = shift;    # indels in this region will also be trimmed
+
+    # default value means only trim indels starting at the first base
+    $head_length = defined $head_length ? $head_length : 1;
+    $tail_length = defined $tail_length ? $tail_length : 1;
+
+    my $seq_number   = scalar @{$seq_names};
+    my $align_length = length $seq_of->{ $seq_names->[0] };
+
+    my $align_set = AlignDB::IntSpan->new("1-$align_length");
+    my $indel_set = AlignDB::IntSpan->new;
+
+    for my $n ( @{$seq_names} ) {
+        my $seq_indel_set = find_indel_set( $seq_of->{$n} );
+        $indel_set->merge($seq_indel_set);
+    }
+
+    # record bp chopped
+    my %head_chopped = map { $_ => 0 } @{$seq_names};
+    my %tail_chopped = map { $_ => 0 } @{$seq_names};
+
+    # There're no indels at all
+    return ( \%head_chopped, \%tail_chopped ) if $indel_set->is_empty;
+
+    # head indel(s) to be trimmed
+    my $head_set = AlignDB::IntSpan->new;
+    $head_set->add_range( 1, $head_length );
+    my $head_indel_set = $indel_set->find_islands($head_set);
+
+    # head indels
+    if ( $head_indel_set->is_not_empty ) {
+        for my $i ( 1 .. $head_indel_set->max ) {
+            my @column;
+            for my $n ( @{$seq_names} ) {
+                my $base = substr( $seq_of->{$n}, 0, 1, '' );
+                if ( $base ne '-' ) {
+                    $head_chopped{$n}++;
+                }
+            }
+        }
+    }
+
+    # tail indel(s) to be trimmed
+    my $tail_set = AlignDB::IntSpan->new;
+    $tail_set->add_range( $align_length - $tail_length + 1, $align_length );
+    my $tail_indel_set = $indel_set->find_islands($tail_set);
+
+    # tail indels
+    if ( $tail_indel_set->is_not_empty ) {
+        for my $i ( $tail_indel_set->min .. $align_length ) {
+            my @column;
+            for my $n ( @{$seq_names} ) {
+                my $base = substr( $seq_of->{$n}, -1, 1, '' );
+                if ( $base ne '-' ) {
+                    $tail_chopped{$n}++;
+                }
+            }
+        }
+    }
+
+    return ( \%head_chopped, \%tail_chopped );
+}
+
+#----------------------------#
+# change fasta sequence names
+#----------------------------#
+sub change_name_chopped {
+    my $seq_of       = shift;
+    my $seq_names    = shift;
+    my $head_chopped = shift;
+    my $tail_chopped = shift;
+
+    my $new_seq_of = {};
+    my $new_names  = [];
+
+    for my $n ( @{$seq_names} ) {
+        my ( $chr, $set, $strand ) = string_to_set($n);
+        my $start = $set->min;
+        my $end   = $set->max;
+
+        if ( $head_chopped->{$n} ) {
+            $start = $start + $head_chopped->{$n};
+        }
+        if ( $tail_chopped->{$n} ) {
+            $end = $end - $tail_chopped->{$n};
+        }
+
+        my $new_set = AlignDB::IntSpan->new;
+        $new_set->add_range( $start, $end );
+        my $new_name = $chr . "(" . $strand . "):" . $new_set->runlist;
+
+        push @{$new_names}, $new_name;
+        $new_seq_of->{$new_name} = $seq_of->{$n};
+    }
+
+    return ( $new_seq_of, $new_names );
+}
+
+#----------------------------#
+# trim outgroup only sequence
+#----------------------------#
+# if intersect is superset of union
+#   target G----C
+#   query  G----C
+#   ref    GAAAAC
+sub trim_outgroup {
+    my $seq_of    = shift;
+    my $seq_names = shift;
+
+    # don't expand indel set here
+    # last is outgroup
+    my %indel_sets;
+    for ( 0 .. @{$seq_names} - 2 ) {
+        my $name = $seq_names->[$_];
+        $indel_sets{$name} = find_indel_set( $seq_of->{$name} );
+    }
+
+    # find trim_region
+    my $trim_region = AlignDB::IntSpan->new;
+
+    my $union_set     = AlignDB::IntSpan::union( values %indel_sets );
+    my $intersect_set = AlignDB::IntSpan::intersect( values %indel_sets );
+
+    for my $span ( $union_set->runlists ) {
+        if ( $intersect_set->superset($span) ) {
+            $trim_region->add($span);
+        }
+    }
+
+    # trim all segments in trim_region
+    print " " x 4, "Delete trim region " . $trim_region->runlist . "\n"
+        if $trim_region->is_not_empty;
+    for my $span ( reverse $trim_region->spans ) {
+        my $seg_start = $span->[0];
+        my $seg_end   = $span->[1];
+        for my $name ( @{$seq_names} ) {
+            substr(
+                $seq_of->{$name},
+                $seg_start - 1,
+                $seg_end - $seg_start + 1, ''
+            );
+        }
+    }
+
+    return;
+}
+
+#----------------------------#
+# record complex indels and ingroup indels
+#----------------------------#
+# if intersect is subset of union
+#   tar GGA--C
+#   que G----C
+#   ref GGAGAC
+sub trim_complex_indel {
+    my $seq_of    = shift;
+    my $seq_names = shift;
+
+    my $ingroup_names = [ @{$seq_names} ];
+    my $outgroup_name = pop @{$ingroup_names};
+
+    my $complex_region = AlignDB::IntSpan->new;
+
+    # don't expand indel set
+    my %indel_sets;
+    for ( @{$seq_names} ) {
+        $indel_sets{$_} = find_indel_set( $seq_of->{$_} );
+    }
+    my $outgroup_indel_set = $indel_sets{$outgroup_name};
+    delete $indel_sets{$outgroup_name};
+
+    # all ingroup intersect sets are complex region after remove uniform ingroup
+    #   indels
+    my $union_set     = AlignDB::IntSpan::union( values %indel_sets );
+    my $intersect_set = AlignDB::IntSpan::intersect( values %indel_sets );
+
+    print " " x 4,
+        "Delete complex trim region " . $intersect_set->runlist . "\n"
+        if $intersect_set->is_not_empty;
+    for ( reverse $intersect_set->spans ) {
+        my $seg_start = $_->[0];
+        my $seg_end   = $_->[1];
+
+        # trim sequence
+        for ( @{$seq_names} ) {
+            substr(
+                $seq_of->{$_},
+                $seg_start - 1,
+                $seg_end - $seg_start + 1, ''
+            );
+        }
+
+        # add to complex_region
+        for my $span ( $union_set->runlists ) {
+            my $sub_union_set = AlignDB::IntSpan->new($span);
+            if ( $sub_union_set->superset("$seg_start-$seg_end") ) {
+                $complex_region->merge($sub_union_set);
+            }
+        }
+
+        # modify all related set
+        $union_set = $union_set->banish_span( $seg_start, $seg_end );
+        for ( @{$ingroup_names} ) {
+            $indel_sets{$_}
+                = $indel_sets{$_}->banish_span( $seg_start, $seg_end );
+        }
+        $outgroup_indel_set->banish_span( $seg_start, $seg_end );
+        $complex_region = $complex_region->banish_span( $seg_start, $seg_end );
+    }
+
+    # add ingroup-outgroup complex indels to complex_region
+    for my $name ( @{$ingroup_names} ) {
+        my $outgroup_intersect_set
+            = $outgroup_indel_set->intersect( $indel_sets{$name} );
+        for my $out_span ( $outgroup_intersect_set->runlists ) {
+            for my $union_span ( $union_set->runlists ) {
+                my $sub_union_set = AlignDB::IntSpan->new($union_span);
+
+                # union_set > intersect_set
+                if ( $sub_union_set->larger_than($out_span) ) {
+                    $complex_region->merge($sub_union_set);
+                }
+            }
+        }
+    }
+
+    return $complex_region->runlist;
+}
+
+sub read_sizes {
+    my $file       = shift;
+    my $remove_chr = shift;
+
+    my @lines = path($file)->lines( { chomp => 1 } );
+    my %length_of;
+    for (@lines) {
+        my ( $key, $value ) = split /\t/;
+        $key =~ s/chr0?// if $remove_chr;
+        $length_of{$key} = $value;
+    }
+
+    return \%length_of;
+}
+
+sub string_to_set {
+    my $node = shift;
+
+    my ( $chr, $runlist ) = split /:/, $node;
+    my $strand = "+";
+    if ( $chr =~ /\((.+)\)/ ) {
+        $strand = $1;
+        $chr =~ s/\(.+\)//;
+    }
+    my $set = AlignDB::IntSpan->new($runlist);
+
+    return ( $chr, $set, $strand );
 }
 
 1;
