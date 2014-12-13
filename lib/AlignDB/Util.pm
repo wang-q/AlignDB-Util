@@ -36,9 +36,11 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
             ref_indel_type ref_pair_D clustal_align multi_align random_sampling
             combi_k_n enumComb k_nuc_permu k_nuc_count k_nuc_incr revcom
             seq_length average sampling_with_replacement random_number
-            stat_result mean median variance stddev read_fasta trim_pure_dash
-            trim_head_tail trim_outgroup trim_complex_indel change_name_chopped
-            read_sizes string_to_set },
+            stat_result mean median variance stddev read_fasta write_fasta
+            write_fasta_fh trim_pure_dash trim_head_tail trim_outgroup
+            trim_complex_indel realign_quick change_name_chopped read_sizes
+            string_to_set decode_header encode_header
+            },
     ],
 );
 
@@ -1049,7 +1051,7 @@ sub read_fasta {
 
     my @seq_names;
     my %seqs;
-    foreach my $line (@lines) {
+    for my $line (@lines) {
         if ( $line =~ /^\>([\w:-])+/ ) {
             $line =~ s/\>//;
             chomp $line;
@@ -1067,6 +1069,54 @@ sub read_fasta {
     }
 
     return ( \%seqs, \@seq_names );
+}
+
+sub write_fasta {
+    my $filename   = shift;
+    my $seq_of     = shift;
+    my $seq_names  = shift;
+    my $real_names = shift;
+
+    open my $fh, ">", $filename;
+    for my $i ( 0 .. @{$seq_names} - 1 ) {
+        my $seq = $seq_of->{ $seq_names->[$i] };
+        my $header;
+        if ($real_names) {
+            $header = $real_names->[$i];
+        }
+        else {
+            $header = $seq_names->[$i];
+        }
+
+        print {$fh} ">" . $header . "\n";
+        print {$fh} $seq . "\n";
+    }
+    close $fh;
+
+    return;
+}
+
+sub write_fasta_fh {
+    my $fh         = shift;
+    my $seq_of     = shift;
+    my $seq_names  = shift;
+    my $real_names = shift;
+
+    for my $i ( 0 .. @{$seq_names} - 1 ) {
+        my $seq = $seq_of->{ $seq_names->[$i] };
+        my $header;
+        if ($real_names) {
+            $header = $real_names->[$i];
+        }
+        else {
+            $header = $seq_names->[$i];
+        }
+
+        print {$fh} ">" . $header . "\n";
+        print {$fh} $seq . "\n";
+    }
+
+    return;
 }
 
 #----------------------------#
@@ -1354,6 +1404,86 @@ sub trim_complex_indel {
     return $complex_region->runlist;
 }
 
+#----------------------------#
+# realign indel_flank region
+#----------------------------#
+sub realign_quick {
+    my $seq_of    = shift;
+    my $seq_names = shift;
+    my $opt       = shift;
+
+    if ( !exists $opt->{indel_expand} ) {
+        $opt->{indel_expand} = 50;
+    }
+    if ( !exists $opt->{indel_join} ) {
+        $opt->{indel_join} = 50;
+    }
+    if ( !exists $opt->{aln_prog} ) {
+        $opt->{aln_prog} = 'clustalw';
+    }
+
+    # use AlignDB::IntSpan to find nearby indels
+    #   expand indel by a range of $indel_expand
+    my %indel_sets;
+    for (@$seq_names) {
+        $indel_sets{$_} = find_indel_set( $seq_of->{$_}, $opt->{indel_expand} );
+    }
+
+    my $realign_region = AlignDB::IntSpan->new;
+    my $combinat       = Math::Combinatorics->new(
+        count => 2,
+        data  => $seq_names,
+    );
+    while ( my @combo = $combinat->next_combination ) {
+        my $intersect_set = AlignDB::IntSpan->new;
+        my $union_set     = AlignDB::IntSpan->new;
+        $intersect_set
+            = $indel_sets{ $combo[0] }->intersect( $indel_sets{ $combo[1] } );
+        $union_set
+            = $indel_sets{ $combo[0] }->union( $indel_sets{ $combo[1] } );
+
+        for my $span ( $union_set->runlists ) {
+            my $flag_set = $intersect_set->intersect($span);
+            if ( $flag_set->is_not_empty ) {
+                $realign_region->add($span);
+            }
+        }
+    }
+
+    # join adjacent realign regions
+    $realign_region = $realign_region->join_span( $opt->{indel_join} );
+
+    # realign all segments in realign_region
+    my @realign_region_spans = $realign_region->spans;
+    for ( reverse @realign_region_spans ) {
+        my $seg_start = $_->[0];
+        my $seg_end   = $_->[1];
+        my @segments;
+        for (@$seq_names) {
+            my $seg = substr(
+                $seq_of->{$_},
+                $seg_start - 1,
+                $seg_end - $seg_start + 1
+            );
+            push @segments, $seg;
+        }
+
+        my $realigned_segments = multi_align( \@segments, $opt->{aln_prog} );
+
+        for (@$seq_names) {
+            my $seg = shift @{$realigned_segments};
+            $seg = uc $seg;
+            substr(
+                $seq_of->{$_},
+                $seg_start - 1,
+                $seg_end - $seg_start + 1, $seg
+            );
+        }
+    }
+
+    return;
+}
+
 sub read_sizes {
     my $file       = shift;
     my $remove_chr = shift;
@@ -1381,6 +1511,92 @@ sub string_to_set {
     my $set = AlignDB::IntSpan->new($runlist);
 
     return ( $chr, $set, $strand );
+}
+
+sub decode_header {
+    my $header = shift;
+
+    # S288C.chrI(+):27070-29557|species=S288C
+    my $head_qr = qr{
+                ([\w_]+)            # name
+                [\.]                # spacer
+                ((?:chr)?[\w-]+)    # chr name
+                \((.+)\)            # strand
+                [\:]                # spacer
+                (\d+)               # chr start
+                [\_\-]              # spacer
+                (\d+)               # chr end
+            }xi;
+
+    my $info = {};
+
+    $header =~ $head_qr;
+    my $name = $1;
+
+    if ( defined $name ) {
+        $info = {
+            chr_name   => $2,
+            chr_strand => $3,
+            chr_start  => $4,
+            chr_end    => $5,
+        };
+        if ( $info->{chr_strand} eq '1' ) {
+            $info->{chr_strand} = '+';
+        }
+        elsif ( $info->{chr_strand} eq '-1' ) {
+            $info->{chr_strand} = '-';
+        }
+    }
+    else {
+        $name = $header;
+        $info = {
+            chr_name   => 'chrUn',
+            chr_strand => '+',
+            chr_start  => undef,
+            chr_end    => undef,
+        };
+    }
+    $info->{name} = $name;
+
+    # additional keys
+    if ( $header =~ /\|(.+)/ ) {
+        my @parts = grep {defined} split /;/, $1;
+        for my $part (@parts) {
+            my ( $key, $value ) = split /=/, $part;
+            if ( defined $key and defined $value ) {
+                $info->{$key} = $value;
+            }
+        }
+    }
+
+    return $info;
+}
+
+sub encode_header {
+    my $info = shift;
+
+    my $header;
+    $header .= $info->{name};
+    $header .= "." . $info->{chr_name};
+    $header .= "(" . $info->{chr_strand} . ")";
+    $header .= ":" . $info->{chr_start};
+    $header .= "-" . $info->{chr_end};
+
+    # additional keys
+    my %essential = map { $_ => 1 }
+        qw{name chr_name chr_strand chr_start chr_end seq full_seq};
+    my @parts;
+    for my $key ( sort keys %{$info} ) {
+        if (! $essential{$key}) {
+            push @parts, $key . "=" . $info->{$key};
+        }
+    }
+    if (@parts) {
+        my $additional = join ";", @parts;
+        $header .= "|" . $additional;
+    }
+
+    return $header;
 }
 
 1;
