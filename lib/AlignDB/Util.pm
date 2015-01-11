@@ -39,7 +39,7 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
             stat_result mean median variance stddev read_fasta write_fasta
             write_fasta_fh trim_pure_dash trim_head_tail trim_outgroup
             trim_complex_indel realign_quick change_name_chopped read_sizes
-            string_to_set decode_header encode_header
+            string_to_set decode_header encode_header replace_home
             },
     ],
 );
@@ -1597,6 +1597,17 @@ sub encode_header {
     }
 
     return $header;
+}
+
+sub replace_home {
+    my $path = shift;
+
+    if ( $path =~ /^\~\// ) {
+        $path =~ s/^\~\///;
+        $path = File::Spec->catdir( File::HomeDir->my_home, $path );
+    }
+
+    return $path;
 }
 
 1;
