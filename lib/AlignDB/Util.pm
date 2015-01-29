@@ -21,6 +21,7 @@ use Bio::Tools::Run::Alignment::Clustalw;
 use Bio::Tools::Run::Alignment::TCoffee;
 use Bio::Tools::Run::Alignment::Muscle;
 use Bio::Tools::Run::Alignment::MAFFT;
+use Bio::Align::DNAStatistics;
 
 use AlignDB::IntSpan;
 
@@ -33,13 +34,14 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
         qw{
             calc_gc_ratio pair_seq_stat multi_seq_stat pair_snp_sites
             multi_snp_site single_indel_sites pair_indel_sites find_indel_set
-            ref_indel_type ref_pair_D clustal_align multi_align random_sampling
-            combi_k_n enumComb k_nuc_permu k_nuc_count k_nuc_incr revcom
-            seq_length average sampling_with_replacement random_number
-            stat_result mean median variance stddev read_fasta write_fasta
-            write_fasta_fh trim_pure_dash trim_head_tail trim_outgroup
-            trim_complex_indel realign_quick change_name_chopped read_sizes
-            string_to_set decode_header encode_header
+            ref_indel_type ref_pair_D clustal_align multi_align
+            multi_align_matrix random_sampling combi_k_n enumComb k_nuc_permu
+            k_nuc_count k_nuc_incr revcom seq_length average
+            sampling_with_replacement random_number stat_result mean median
+            variance stddev read_fasta write_fasta write_fasta_fh trim_pure_dash
+            trim_head_tail trim_outgroup trim_complex_indel realign_quick
+            change_name_chopped read_sizes string_to_set decode_header
+            encode_header
             },
     ],
 );
@@ -799,6 +801,36 @@ sub multi_align {
     return \@seqs;
 }
 
+# quick calc distance matrix
+sub multi_align_matrix {
+    my $seqs_ref = shift;
+
+    my $seq_number = scalar @{$seqs_ref};
+    my ( @seqs, @seqs_obj );
+
+    for ( my $i = 0; $i < $seq_number; $i++ ) {
+        $seqs[$i] = $seqs_ref->[$i];
+        $seqs[$i] =~ s/-//g;
+        $seqs_obj[$i] = Bio::Seq->new(
+            -display_id => "seq_$i",
+            -seq        => $seqs[$i],
+        );
+    }
+
+    my $aln_factory = Bio::Tools::Run::Alignment::MAFFT->new( -verbose => -1 );
+    unless ( $aln_factory->executable ) {
+        confess "Could not find the executable for mafft\n";
+    }
+
+    my $dna_aln = $aln_factory->align( \@seqs_obj );
+    
+    my $stats = Bio::Align::DNAStatistics->new();
+    my $matrix = $stats->distance(-align => $dna_aln, 
+                                  -method => 'Jukes-Cantor');
+
+    return $matrix;
+}
+
 # To select n records at random from a set of N, where 0 < n <= N
 # return an array containing 0 .. N - 1
 # Algorithm S (Selection sampling technique)
@@ -1255,11 +1287,21 @@ sub change_name_chopped {
         my $start = $set->min;
         my $end   = $set->max;
 
-        if ( $head_chopped->{$n} ) {
-            $start = $start + $head_chopped->{$n};
+        if ( $strand eq '+' ) {
+            if ( $head_chopped->{$n} ) {
+                $start = $start + $head_chopped->{$n};
+            }
+            if ( $tail_chopped->{$n} ) {
+                $end = $end - $tail_chopped->{$n};
+            }
         }
-        if ( $tail_chopped->{$n} ) {
-            $end = $end - $tail_chopped->{$n};
+        else {
+            if ( $head_chopped->{$n} ) {
+                $end = $end - $head_chopped->{$n};
+            }
+            if ( $tail_chopped->{$n} ) {
+                $start = $start + $tail_chopped->{$n};
+            }
         }
 
         my $new_set = AlignDB::IntSpan->new;
@@ -1587,7 +1629,7 @@ sub encode_header {
         qw{name chr_name chr_strand chr_start chr_end seq full_seq};
     my @parts;
     for my $key ( sort keys %{$info} ) {
-        if (! $essential{$key}) {
+        if ( !$essential{$key} ) {
             push @parts, $key . "=" . $info->{$key};
         }
     }
