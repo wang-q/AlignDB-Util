@@ -34,6 +34,7 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
         qw{
             calc_gc_ratio pair_seq_stat multi_seq_stat pair_snp_sites
             multi_snp_site single_indel_sites pair_indel_sites find_indel_set
+<<<<<<< HEAD
             ref_indel_type ref_pair_D clustal_align multi_align
             multi_align_matrix random_sampling combi_k_n enumComb k_nuc_permu
             k_nuc_count k_nuc_incr revcom seq_length average
@@ -42,6 +43,15 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
             trim_head_tail trim_outgroup trim_complex_indel realign_quick
             change_name_chopped read_sizes string_to_set decode_header
             encode_header
+=======
+            ref_indel_type ref_pair_D clustal_align multi_align random_sampling
+            combi_k_n enumComb k_nuc_permu k_nuc_count k_nuc_incr revcom
+            seq_length average sampling_with_replacement random_number
+            stat_result mean median variance stddev read_fasta write_fasta
+            write_fasta_fh trim_pure_dash trim_head_tail trim_outgroup
+            trim_complex_indel realign_quick change_name_chopped read_sizes
+            string_to_set decode_header encode_header replace_home
+>>>>>>> FETCH_HEAD
             },
     ],
 );
@@ -1639,6 +1649,17 @@ sub encode_header {
     }
 
     return $header;
+}
+
+sub replace_home {
+    my $path = shift;
+
+    if ( $path =~ /^\~\// ) {
+        $path =~ s/^\~\///;
+        $path = File::Spec->catdir( File::HomeDir->my_home, $path );
+    }
+
+    return $path;
 }
 
 1;
