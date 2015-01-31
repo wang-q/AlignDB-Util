@@ -823,10 +823,12 @@ sub multi_align_matrix {
     }
 
     my $dna_aln = $aln_factory->align( \@seqs_obj );
-    
-    my $stats = Bio::Align::DNAStatistics->new();
-    my $matrix = $stats->distance(-align => $dna_aln, 
-                                  -method => 'Jukes-Cantor');
+
+    my $stats  = Bio::Align::DNAStatistics->new();
+    my $matrix = $stats->distance(
+        -align  => $dna_aln,
+        -method => 'Jukes-Cantor'
+    );
 
     return $matrix;
 }
@@ -1084,7 +1086,7 @@ sub read_fasta {
     my @seq_names;
     my %seqs;
     for my $line (@lines) {
-        if ( $line =~ /^\>([\w:-])+/ ) {
+        if ( $line =~ /^\>[\w:-]+/ ) {
             $line =~ s/\>//;
             chomp $line;
             push @seq_names, $line;
@@ -1560,10 +1562,10 @@ sub decode_header {
 
     # S288C.chrI(+):27070-29557|species=S288C
     my $head_qr = qr{
-                ([\w_]+)            # name
-                [\.]                # spacer
+                ([\w_]+)?           # name
+                [\.]?               # spacer
                 ((?:chr)?[\w-]+)    # chr name
-                \((.+)\)            # strand
+                (?:\((.+)\))?       # strand
                 [\:]                # spacer
                 (\d+)               # chr start
                 [\_\-]              # spacer
@@ -1573,7 +1575,8 @@ sub decode_header {
     my $info = {};
 
     $header =~ $head_qr;
-    my $name = $1;
+    my $name     = $1;
+    my $chr_name = $2;
 
     if ( defined $name ) {
         $info = {
@@ -1583,6 +1586,24 @@ sub decode_header {
             chr_end    => $5,
         };
         if ( $info->{chr_strand} eq '1' ) {
+            $info->{chr_strand} = '+';
+        }
+        elsif ( $info->{chr_strand} eq '-1' ) {
+            $info->{chr_strand} = '-';
+        }
+    }
+    elsif ( defined $chr_name ) {
+        $name = $header;
+        $info = {
+            chr_name   => $2,
+            chr_strand => $3,
+            chr_start  => $4,
+            chr_end    => $5,
+        };
+        if ( !defined $info->{chr_strand} ) {
+            $info->{chr_strand} = '+';
+        }
+        elsif ( $info->{chr_strand} eq '1' ) {
             $info->{chr_strand} = '+';
         }
         elsif ( $info->{chr_strand} eq '-1' ) {
