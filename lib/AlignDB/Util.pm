@@ -32,16 +32,11 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 %EXPORT_TAGS = (
     all => [
         qw{
-            calc_gc_ratio pair_seq_stat multi_seq_stat pair_snp_sites
-            multi_snp_site single_indel_sites pair_indel_sites find_indel_set
-            ref_indel_type ref_pair_D clustal_align multi_align
-            multi_align_matrix random_sampling combi_k_n enumComb k_nuc_permu
-            k_nuc_count k_nuc_incr revcom seq_length average
-            sampling_with_replacement random_number stat_result mean median
-            variance stddev read_fasta write_fasta write_fasta_fh trim_pure_dash
-            trim_head_tail trim_outgroup trim_complex_indel realign_quick
-            change_name_chopped read_sizes string_to_set decode_header
-            encode_header
+            calc_gc_ratio pair_seq_stat multi_seq_stat pair_snp_sites multi_snp_site
+            single_indel_sites pair_indel_sites find_indel_set ref_indel_type ref_pair_D multi_align
+            multi_align_matrix revcom seq_length average mean median variance stddev
+            read_fasta write_fasta trim_pure_dash trim_head_tail trim_outgroup trim_complex_indel
+            realign_quick decode_header encode_header
             },
     ],
 );
@@ -171,8 +166,7 @@ sub pair_seq_stat {
 
     # For every positions, search for polymorphism_site
     my ( $number_of_comparable_bases, $number_of_identities,
-        $number_of_differences, $number_of_gaps, $number_of_n,
-        $number_of_align_error, )
+        $number_of_differences, $number_of_gaps, $number_of_n, $number_of_align_error, )
         = (0) x 6;
     for my $pos ( 1 .. $seq_legnth ) {
         my @nt_pair = ();
@@ -225,11 +219,10 @@ sub pair_seq_stat {
         );
         carp "number_of_comparable_bases == 0!!\n";
         return [
-            $seq_legnth,           $number_of_comparable_bases,
-            $number_of_identities, $number_of_differences,
-            $number_of_gaps,       $number_of_n,
-            $seq_legnth,           'NULL',
-            'NULL',                'NULL',
+            $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
+            $number_of_differences, $number_of_gaps,             $number_of_n,
+            $seq_legnth,            'NULL',                      'NULL',
+            'NULL',
         ];
     }
     my $pi = $number_of_differences / $number_of_comparable_bases;
@@ -238,11 +231,10 @@ sub pair_seq_stat {
     my $average_gc = calc_gc_ratio( $first_seq, $second_seq );
 
     return [
-        $seq_legnth,            $number_of_comparable_bases,
-        $number_of_identities,  $number_of_differences,
-        $number_of_gaps,        $number_of_n,
-        $number_of_align_error, $pi,
-        $first_seq_gc,          $average_gc,
+        $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
+        $number_of_differences, $number_of_gaps,             $number_of_n,
+        $number_of_align_error, $pi,                         $first_seq_gc,
+        $average_gc,
     ];
 }
 
@@ -257,8 +249,7 @@ sub multi_seq_stat {
 
     # For every positions, search for polymorphism_site
     my ( $number_of_comparable_bases, $number_of_identities,
-        $number_of_differences, $number_of_gaps, $number_of_n,
-        $number_of_align_error, )
+        $number_of_differences, $number_of_gaps, $number_of_n, $number_of_align_error, )
         = (0) x 6;
     for my $pos ( 1 .. $seq_legnth ) {
         my @bases = ();
@@ -288,11 +279,8 @@ sub multi_seq_stat {
         print Dump { seqs => \@seqs, };
         carp "number_of_comparable_bases == 0!!\n";
         return [
-            $seq_legnth,           $number_of_comparable_bases,
-            $number_of_identities, $number_of_differences,
-            $number_of_gaps,       $number_of_n,
-            $seq_legnth,           undef,
-            undef,                 undef,
+            $seq_legnth, $number_of_comparable_bases, $number_of_identities, $number_of_differences,
+            $number_of_gaps, $number_of_n, $seq_legnth, undef, undef, undef,
         ];
     }
 
@@ -312,11 +300,10 @@ sub multi_seq_stat {
     my $average_gc = calc_gc_ratio(@seqs);
 
     return [
-        $seq_legnth,            $number_of_comparable_bases,
-        $number_of_identities,  $number_of_differences,
-        $number_of_gaps,        $number_of_n,
-        $number_of_align_error, $pi,
-        $target_gc,             $average_gc,
+        $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
+        $number_of_differences, $number_of_gaps,             $number_of_n,
+        $number_of_align_error, $pi,                         $target_gc,
+        $average_gc,
     ];
 }
 
@@ -470,10 +457,8 @@ sub pair_indel_sites {
         my $indel_end    = $span->[1];
         my $indel_length = $indel_end - $indel_start + 1;
 
-        my $first_indel_seq
-            = substr( $first_seq, $indel_start - 1, $indel_length );
-        my $second_indel_seq
-            = substr( $second_seq, $indel_start - 1, $indel_length );
+        my $first_indel_seq  = substr( $first_seq,  $indel_start - 1, $indel_length );
+        my $second_indel_seq = substr( $second_seq, $indel_start - 1, $indel_length );
 
         # $indel_insert:
         #   'N': means indel occured in other place
@@ -527,19 +512,17 @@ sub pair_indel_sites {
     my $anterior_indel_end = 0;
     for my $i ( 0 .. scalar @indel_sites - 1 ) {
         my $current_indel_start = $indel_sites[$i]->{start};
-        my $current_left_extand
-            = $current_indel_start - 1 - $anterior_indel_end;
-        my $current_indel_end = $indel_sites[$i]->{end};
+        my $current_left_extand = $current_indel_start - 1 - $anterior_indel_end;
+        my $current_indel_end   = $indel_sites[$i]->{end};
         $anterior_indel_end = $current_indel_end;
         $indel_sites[$i]->{left_extand} = $current_left_extand;
     }
 
     my $posterior_indel_start = $seq_legnth + 1;
     for my $i ( reverse( 0 .. scalar @indel_sites - 1 ) ) {
-        my $current_indel_end = $indel_sites[$i]->{end};
-        my $current_right_extand
-            = $posterior_indel_start - $current_indel_end - 1;
-        my $current_indel_start = $indel_sites[$i]->{start};
+        my $current_indel_end    = $indel_sites[$i]->{end};
+        my $current_right_extand = $posterior_indel_start - $current_indel_end - 1;
+        my $current_indel_start  = $indel_sites[$i]->{start};
         $posterior_indel_start = $current_indel_start;
         $indel_sites[$i]->{right_extand} = $current_right_extand;
     }
@@ -721,8 +704,7 @@ sub clustal_align {
         );
     }
     my $aln_factory;
-    $aln_factory
-        = Bio::Tools::Run::Alignment::Clustalw->new( @params, -verbose => -1 );
+    $aln_factory = Bio::Tools::Run::Alignment::Clustalw->new( @params, -verbose => -1 );
     unless ( $aln_factory->executable ) {
         die "Could not find the executable for ClustalW\n";
     }
@@ -763,23 +745,19 @@ sub multi_align {
 
     my $aln_factory;
     if ( $aln_prog =~ /clus/i ) {
-        $aln_factory
-            = Bio::Tools::Run::Alignment::Clustalw->new( -verbose => -1 );
+        $aln_factory = Bio::Tools::Run::Alignment::Clustalw->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /t\_?cof/i ) {
-        $aln_factory
-            = Bio::Tools::Run::Alignment::TCoffee->new( -verbose => -1 );
+        $aln_factory = Bio::Tools::Run::Alignment::TCoffee->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /musc/i ) {
-        $aln_factory
-            = Bio::Tools::Run::Alignment::Muscle->new( -verbose => -1 );
+        $aln_factory = Bio::Tools::Run::Alignment::Muscle->new( -verbose => -1 );
     }
     elsif ( $aln_prog =~ /maff/i ) {
         $aln_factory = Bio::Tools::Run::Alignment::MAFFT->new( -verbose => -1 );
     }
     else {
-        confess "Provide clustalw, tcoffee, muscle or mafft"
-            . " as alignment program names";
+        confess "Provide clustalw, tcoffee, muscle or mafft" . " as alignment program names";
     }
     unless ( $aln_factory->executable ) {
         confess "Could not find the executable for $aln_prog\n";
@@ -833,33 +811,6 @@ sub multi_align_matrix {
     return $matrix;
 }
 
-# To select n records at random from a set of N, where 0 < n <= N
-# return an array containing 0 .. N - 1
-# Algorithm S (Selection sampling technique)
-# TAOCP Vol2 3.4.2
-sub random_sampling {
-    my ( $N, $n ) = @_;
-
-    my $t = 0;    # t is the total number of input records we have dealt with
-    my $m = 0;    # m represents the number of records selected so far
-
-    my @samples;
-
-    while (1) {
-        my $U = rand();
-        if ( ( $N - $t ) * $U >= $n - $m ) {
-            $t++;
-        }
-        else {
-            push @samples, $t;
-            $m++;
-            $t++;
-            last if ( $m >= $n );
-        }
-    }
-    return @samples;
-}
-
 sub factorial_of {
     my $n = shift;
     return unless $n >= 0 and $n == int($n);
@@ -873,85 +824,43 @@ sub factorial_of {
     return $f;
 }
 
-sub combi_k_n {
-    my ( $k, $n ) = @_;
-    my $com = factorial_of($n) / factorial_of($k) / factorial_of( $n - $k );
-    return $com;
-}
-
-# Usage
-#
-#my @comb = (-1);
-#
-#while (&enumComb(10, 3, \@comb)) {
-#    print "@comb\n";
+#sub combi_k_n {
+#    my ( $k, $n ) = @_;
+#    my $com = factorial_of($n) / factorial_of($k) / factorial_of( $n - $k );
+#    return $com;
 #}
-sub enumComb {
-    my ( $n, $k, $comb ) = @_;
-    my $i;
-    if ( $comb->[0] < 0 ) {
-        for ( $i = 0; $i < $k; $i++ ) {
-            $comb->[$i] = $i;
-        }
-        return 1;
-    }
-    else {
-        for ( $i = $k - 1; $i >= 0 && $comb->[$i] >= $n - $k + $i; $i-- ) { }
-        if ( $i >= 0 ) {
-            $comb->[$i]++;
-            my $m;
-            for ( $m = $i + 1; $m < $k; $m++ ) {
-                $comb->[$m] = $comb->[ $m - 1 ] + 1;
-            }
-            return 1;
-        }
-        else {
-            return 0;
-        }
-    }
-}
 
-sub k_nuc_permu {
-    my $k         = shift;
-    my @alphabets = qw{A C G T};
-
-    my %table;
-    $table{$_} = '' foreach @alphabets;
-    foreach ( 2 .. $k ) {
-        foreach my $current_key ( keys %table ) {
-            $table{ $current_key . $_ } = '' foreach @alphabets;
-            delete $table{$current_key};
-        }
-    }
-
-    return sort keys %table;
-}
-
-sub k_nuc_count {
-    my $seq_ref = shift;
-    my $k       = shift;
-
-    my $seq_length = length $$seq_ref;
-    my %table;
-
-    foreach ( 0 .. $seq_length - $k ) {
-        $table{ substr( $$seq_ref, $_, $k ) }++;
-    }
-
-    return %table;
-}
-
-sub k_nuc_incr {
-    my $seq_ref  = shift;
-    my $k        = shift;
-    my $hash_ref = shift;
-
-    my $seq_length = length $$seq_ref;
-
-    foreach ( 0 .. $seq_length - $k ) {
-        $hash_ref->{ substr( $$seq_ref, $_, $k ) }++;
-    }
-}
+## Usage
+##
+##my @comb = (-1);
+##
+##while (&enumComb(10, 3, \@comb)) {
+##    print "@comb\n";
+##}
+#sub enumComb {
+#    my ( $n, $k, $comb ) = @_;
+#    my $i;
+#    if ( $comb->[0] < 0 ) {
+#        for ( $i = 0; $i < $k; $i++ ) {
+#            $comb->[$i] = $i;
+#        }
+#        return 1;
+#    }
+#    else {
+#        for ( $i = $k - 1; $i >= 0 && $comb->[$i] >= $n - $k + $i; $i-- ) { }
+#        if ( $i >= 0 ) {
+#            $comb->[$i]++;
+#            my $m;
+#            for ( $m = $i + 1; $m < $k; $m++ ) {
+#                $comb->[$m] = $comb->[ $m - 1 ] + 1;
+#            }
+#            return 1;
+#        }
+#        else {
+#            return 0;
+#        }
+#    }
+#}
 
 sub seq_length {
     my $seq = shift;
@@ -996,54 +905,6 @@ sub _ref2str {
     }
 
     return $ref;
-}
-
-sub sampling_with_replacement {
-    my $data = shift;
-
-    my @sample;
-    my $size = scalar @$data;
-    for ( 1 .. $size ) {
-        my $random_index = random_number($size);
-        push @sample, $data->[$random_index];
-    }
-
-    return \@sample;
-}
-
-sub random_number {
-    my $max_int = shift;
-    my $random  = int( rand($max_int) );
-    return $random;
-}
-
-sub stat_result {
-    my $data = shift;
-
-    my $stat = Statistics::Descriptive::Full->new();
-    $stat->add_data(@$data);
-
-    my $count    = $stat->count();
-    my $mean     = $stat->mean();
-    my $variance = $stat->variance();
-    my $stddev   = $stat->standard_deviation();
-
-    # standard_error =  standard_deviation / sqrt(sample_size)
-    my $stderr = $stddev / sqrt($count);
-
-    my $median        = $stat->median();
-    my $percentile_5  = $stat->percentile(5);
-    my $percentile_95 = $stat->percentile(95);
-
-    my $result = {
-        a_mean          => $mean,
-        b_stderr        => $stderr,
-        c_median        => $median,
-        d_percentile_5  => $percentile_5,
-        e_percentile_95 => $percentile_95,
-    };
-
-    return $result;
 }
 
 sub mean {
@@ -1126,29 +987,6 @@ sub write_fasta {
         print {$fh} $seq . "\n";
     }
     close $fh;
-
-    return;
-}
-
-sub write_fasta_fh {
-    my $fh         = shift;
-    my $seq_of     = shift;
-    my $seq_names  = shift;
-    my $real_names = shift;
-
-    for my $i ( 0 .. @{$seq_names} - 1 ) {
-        my $seq = $seq_of->{ $seq_names->[$i] };
-        my $header;
-        if ($real_names) {
-            $header = $real_names->[$i];
-        }
-        else {
-            $header = $seq_names->[$i];
-        }
-
-        print {$fh} ">" . $header . "\n";
-        print {$fh} $seq . "\n";
-    }
 
     return;
 }
@@ -1273,51 +1111,6 @@ sub trim_head_tail {
 }
 
 #----------------------------#
-# change fasta sequence names
-#----------------------------#
-sub change_name_chopped {
-    my $seq_of       = shift;
-    my $seq_names    = shift;
-    my $head_chopped = shift;
-    my $tail_chopped = shift;
-
-    my $new_seq_of = {};
-    my $new_names  = [];
-
-    for my $n ( @{$seq_names} ) {
-        my ( $chr, $set, $strand ) = string_to_set($n);
-        my $start = $set->min;
-        my $end   = $set->max;
-
-        if ( $strand eq '+' ) {
-            if ( $head_chopped->{$n} ) {
-                $start = $start + $head_chopped->{$n};
-            }
-            if ( $tail_chopped->{$n} ) {
-                $end = $end - $tail_chopped->{$n};
-            }
-        }
-        else {
-            if ( $head_chopped->{$n} ) {
-                $end = $end - $head_chopped->{$n};
-            }
-            if ( $tail_chopped->{$n} ) {
-                $start = $start + $tail_chopped->{$n};
-            }
-        }
-
-        my $new_set = AlignDB::IntSpan->new;
-        $new_set->add_range( $start, $end );
-        my $new_name = $chr . "(" . $strand . "):" . $new_set->runlist;
-
-        push @{$new_names}, $new_name;
-        $new_seq_of->{$new_name} = $seq_of->{$n};
-    }
-
-    return ( $new_seq_of, $new_names );
-}
-
-#----------------------------#
 # trim outgroup only sequence
 #----------------------------#
 # if intersect is superset of union
@@ -1355,11 +1148,7 @@ sub trim_outgroup {
         my $seg_start = $span->[0];
         my $seg_end   = $span->[1];
         for my $name ( @{$seq_names} ) {
-            substr(
-                $seq_of->{$name},
-                $seg_start - 1,
-                $seg_end - $seg_start + 1, ''
-            );
+            substr( $seq_of->{$name}, $seg_start - 1, $seg_end - $seg_start + 1, '' );
         }
     }
 
@@ -1395,8 +1184,7 @@ sub trim_complex_indel {
     my $union_set     = AlignDB::IntSpan::union( values %indel_sets );
     my $intersect_set = AlignDB::IntSpan::intersect( values %indel_sets );
 
-    print " " x 4,
-        "Delete complex trim region " . $intersect_set->runlist . "\n"
+    print " " x 4, "Delete complex trim region " . $intersect_set->runlist . "\n"
         if $intersect_set->is_not_empty;
     for ( reverse $intersect_set->spans ) {
         my $seg_start = $_->[0];
@@ -1404,11 +1192,7 @@ sub trim_complex_indel {
 
         # trim sequence
         for ( @{$seq_names} ) {
-            substr(
-                $seq_of->{$_},
-                $seg_start - 1,
-                $seg_end - $seg_start + 1, ''
-            );
+            substr( $seq_of->{$_}, $seg_start - 1, $seg_end - $seg_start + 1, '' );
         }
 
         # add to complex_region
@@ -1431,8 +1215,7 @@ sub trim_complex_indel {
 
     # add ingroup-outgroup complex indels to complex_region
     for my $name ( @{$ingroup_names} ) {
-        my $outgroup_intersect_set
-            = $outgroup_indel_set->intersect( $indel_sets{$name} );
+        my $outgroup_intersect_set = $outgroup_indel_set->intersect( $indel_sets{$name} );
         for my $out_span ( $outgroup_intersect_set->runlists ) {
             for my $union_span ( $union_set->runlists ) {
                 my $sub_union_set = AlignDB::IntSpan->new($union_span);
@@ -1504,11 +1287,7 @@ sub realign_quick {
         my $seg_end   = $_->[1];
         my @segments;
         for (@$seq_names) {
-            my $seg = substr(
-                $seq_of->{$_},
-                $seg_start - 1,
-                $seg_end - $seg_start + 1
-            );
+            my $seg = substr( $seq_of->{$_}, $seg_start - 1, $seg_end - $seg_start + 1 );
             push @segments, $seg;
         }
 
@@ -1517,44 +1296,11 @@ sub realign_quick {
         for (@$seq_names) {
             my $seg = shift @{$realigned_segments};
             $seg = uc $seg;
-            substr(
-                $seq_of->{$_},
-                $seg_start - 1,
-                $seg_end - $seg_start + 1, $seg
-            );
+            substr( $seq_of->{$_}, $seg_start - 1, $seg_end - $seg_start + 1, $seg );
         }
     }
 
     return;
-}
-
-sub read_sizes {
-    my $file       = shift;
-    my $remove_chr = shift;
-
-    my @lines = path($file)->lines( { chomp => 1 } );
-    my %length_of;
-    for (@lines) {
-        my ( $key, $value ) = split /\t/;
-        $key =~ s/chr0?// if $remove_chr;
-        $length_of{$key} = $value;
-    }
-
-    return \%length_of;
-}
-
-sub string_to_set {
-    my $node = shift;
-
-    my ( $chr, $runlist ) = split /:/, $node;
-    my $strand = "+";
-    if ( $chr =~ /\((.+)\)/ ) {
-        $strand = $1;
-        $chr =~ s/\(.+\)//;
-    }
-    my $set = AlignDB::IntSpan->new($runlist);
-
-    return ( $chr, $set, $strand );
 }
 
 sub decode_header {
@@ -1646,8 +1392,7 @@ sub encode_header {
     $header .= "-" . $info->{chr_end};
 
     # additional keys
-    my %essential = map { $_ => 1 }
-        qw{name chr_name chr_strand chr_start chr_end seq full_seq};
+    my %essential = map { $_ => 1 } qw{name chr_name chr_strand chr_start chr_end seq full_seq};
     my @parts;
     for my $key ( sort keys %{$info} ) {
         if ( !$essential{$key} ) {
@@ -1660,17 +1405,6 @@ sub encode_header {
     }
 
     return $header;
-}
-
-sub replace_home {
-    my $path = shift;
-
-    if ( $path =~ /^\~\// ) {
-        $path =~ s/^\~\///;
-        $path = File::Spec->catdir( File::HomeDir->my_home, $path );
-    }
-
-    return $path;
 }
 
 1;
