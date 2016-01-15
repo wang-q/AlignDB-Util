@@ -1,6 +1,8 @@
 Revision history for AlignDB-Util
 
 {{$NEXT}}
+
+1.0.0  2016-01-15 17:08:34 CST
     - Switch to Dist::Milla
 
 0.01   Tue Jun 23 20:02:46 2009
