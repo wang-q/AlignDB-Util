@@ -1,6 +1,8 @@
-Revision history for {{$dist->name}}
+Revision history for AlignDB-Util
+
+{{$NEXT}}
+    - Switch to Dist::Milla
 
 0.01   Tue Jun 23 20:02:46 2009
-       Initial release.
-       Switch to Dist::Zilla
-
+    - Initial release.
+    - Switch to Dist::Zilla

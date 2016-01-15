@@ -1,13 +1,11 @@
 package AlignDB::Util;
-
-# ABSTRACT: Misc functions for AlignDB
-
 use strict;
 use warnings;
+use autodie;
+
 use Carp;
 use YAML qw(Dump Load DumpFile LoadFile);
 
-use File::Slurp;
 use Path::Tiny;
 use List::Util qw(first max maxstr min minstr reduce shuffle sum);
 use List::MoreUtils qw(firstidx all any uniq );
@@ -27,8 +25,7 @@ use AlignDB::IntSpan;
 
 use base 'Exporter';
 use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
-@ISA = qw(Exporter);
-
+@ISA         = qw(Exporter);
 %EXPORT_TAGS = (
     all => [
         qw{
@@ -40,8 +37,9 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
             },
     ],
 );
-
 @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+
+our $VERSION = '1.0.0';
 
 #----------------------------------------------------------#
 # overide bioperl tempdir
@@ -942,7 +940,7 @@ sub stddev {
 sub read_fasta {
     my $filename = shift;
 
-    my @lines = read_file($filename);
+    my @lines = path($filename)->lines;
 
     my @seq_names;
     my %seqs;
@@ -1411,7 +1409,28 @@ sub encode_header {
 
 __END__
 
+
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+AlignDB::Util - Misc functions for AlignDB
+
 =head1 SYNOPSIS
 
     use AlignDB::Util qw(:all);
 
+=head1 AUTHOR
+
+Qiang Wang <wang-q@outlook.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2008- by Qiang Wang.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
