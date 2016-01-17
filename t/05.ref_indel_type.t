@@ -29,9 +29,8 @@ BEGIN {
     my @indel16 = ( [qw{ ---- ---- ---- }], "N", "N" );
 
     my @indels = (
-        \@indel1,  \@indel2,  \@indel3,  \@indel4,  \@indel5,  \@indel6,
-        \@indel7,  \@indel8,  \@indel9,  \@indel10, \@indel11, \@indel12,
-        \@indel13, \@indel14, \@indel15, \@indel16,
+        \@indel1, \@indel2,  \@indel3,  \@indel4,  \@indel5,  \@indel6,  \@indel7,  \@indel8,
+        \@indel9, \@indel10, \@indel11, \@indel12, \@indel13, \@indel14, \@indel15, \@indel16,
     );
 
     foreach my $i ( 0 .. @indels - 1 ) {
@@ -44,4 +43,3 @@ BEGIN {
         is( $indel_type,    $expect_type,    "type_$i" );
     }
 }
-

@@ -21,9 +21,7 @@ BEGIN {
 
         #AAAATTTTGG
         #AAAATTTTTG
-        [   [qw{ AAAATTTTGG AAAATTTTTG }],
-            [ 10, 10, 9, 1, 0, 0, 0, 0.1, 0.2, 0.15 ],
-        ],
+        [ [qw{ AAAATTTTGG AAAATTTTTG }], [ 10, 10, 9, 1, 0, 0, 0, 0.1, 0.2, 0.15 ], ],
 
         #TTAGCCGCTGAGAAGC
         #GTAGCCGCTGA-AGGC
@@ -50,4 +48,3 @@ BEGIN {
         delta_ok( $result_multi_ref, $except_ref, "stat $i" );
     }
 }
-

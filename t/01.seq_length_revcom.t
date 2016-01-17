@@ -12,10 +12,9 @@ BEGIN {
     print "#seq_length\n";
 
     my @seqs = (
-        [qw{ AAAA 4 }],
-        [qw{ CCCC 4 }],
-        [qw{ TAGGGATAACAGGGTAAT 18 }], 
-        [qw{ GCAN--NN--NNTGC 11 }],     
+        [qw{ AAAA 4 }], [qw{ CCCC 4 }],
+        [qw{ TAGGGATAACAGGGTAAT 18 }],
+        [qw{ GCAN--NN--NNTGC 11 }],
     );
 
     foreach my $i ( 0 .. @seqs - 1 ) {
@@ -35,8 +34,8 @@ BEGIN {
     my @seqs = (
         [qw{ AAAA TTTT }],
         [qw{ CCCC GGGG }],
-        [qw{ TAGGGATAACAGGGTAAT ATTACCCTGTTATCCCTA }],  # I-Sce I endonuclease
-        [qw{ GCANNNNNTGC GCANNNNNTGC }],                # BstAP I
+        [qw{ TAGGGATAACAGGGTAAT ATTACCCTGTTATCCCTA }],    # I-Sce I endonuclease
+        [qw{ GCANNNNNTGC GCANNNNNTGC }],                  # BstAP I
     );
 
     foreach my $i ( 0 .. @seqs - 1 ) {
