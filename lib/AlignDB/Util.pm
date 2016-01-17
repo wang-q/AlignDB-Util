@@ -39,7 +39,7 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 );
 @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 #----------------------------------------------------------#
 # overide bioperl tempdir
