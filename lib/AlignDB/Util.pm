@@ -69,56 +69,6 @@ my $tmpdir;
     use warnings;
 }
 
-#----------------------------#
-# Below are every approaches I have tried, just for memory
-#----------------------------#
-
-# AlignDB::Util::clustal_align use Bio::Tools::Run::Alignment::Clustalw, which
-#   use File::Temp to generate temp files. AND File::Temp use File::Spec to
-#   get temporary dir.
-# So we change File::Spec::Unix::_tmpdir to get tmpdir relocated and now two
-#   or more ref_outgroup.pl will not affect each other.
-# PS: ingore the "Subroutine _tmpdir redefined" warning.
-#package File::Spec::Unix;
-#my $tmpdir;
-#sub _tmpdir {
-#    return $tmpdir if defined $tmpdir;
-#    my $tmpdir = 'tmp' . int(rand() * 1000000000);
-#    if ( $^O eq 'MSWin32' ) {
-#        $tmpdir = 'c:\\' . $tmpdir ;
-#    }
-#    else {
-#        $tmpdir = '/tmp/' . $tmpdir ;
-#    }
-#    mkdir $tmpdir if ! -e $tmpdir;
-#    return $tmpdir;
-#}
-
-# Damn! Bio::Tools::Run:: also define a tempdir method. We should only
-#   override it.
-# We are really happy now!
-# I failed to use Sub::Override, glob or even Symbol::Glob to replace this ugly
-#   approach, is there a clean solution?
-#package Bio::Tools::Run::WrapperBase;
-#
-#my $tmpdir;
-#
-#sub tempdir {
-#    if ( defined $tmpdir ) {
-#        mkdir $tmpdir if !-e $tmpdir;
-#        return $tmpdir;
-#    }
-#    $tmpdir = 'tmp' . int( rand() * 1000000 );
-#    if ( $^O eq 'MSWin32' ) {
-#        $tmpdir = $ENV{TEMP} . '\\' . $tmpdir;
-#    }
-#    else {
-#        $tmpdir = '/tmp/' . $tmpdir;
-#    }
-#    mkdir $tmpdir if !-e $tmpdir;
-#    return $tmpdir;
-#}
-
 #----------------------------------------------------------#
 # every subroutines
 #----------------------------------------------------------#
@@ -1276,7 +1226,7 @@ sub realign_quick {
     }
 
     # join adjacent realign regions
-    $realign_region = $realign_region->join_span( $opt->{indel_join} );
+    $realign_region = $realign_region->fill( $opt->{indel_join} );
 
     # realign all segments in realign_region
     my @realign_region_spans = $realign_region->spans;
