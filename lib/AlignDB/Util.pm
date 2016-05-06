@@ -29,9 +29,8 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 %EXPORT_TAGS = (
     all => [
         qw{
-            calc_gc_ratio pair_seq_stat multi_snp_site
-            single_indel_sites find_indel_set ref_indel_type ref_pair_D multi_align
-            multi_align_matrix revcom seq_length average mean median variance stddev
+            calc_gc_ratio pair_seq_stat single_indel_sites find_indel_set ref_pair_D
+            multi_align multi_align_matrix revcom seq_length average mean median variance stddev
             read_fasta write_fasta trim_pure_dash trim_head_tail trim_outgroup trim_complex_indel
             realign_quick decode_header encode_header
             },
@@ -104,116 +103,6 @@ sub calc_gc_ratio {
     return mean(@ratios);
 }
 
-sub pair_seq_stat {
-    my ( $first_seq, $second_seq ) = @_;
-
-    _ref2str( \$first_seq );
-    _ref2str( \$second_seq );
-
-    my $seq_legnth = length $first_seq;
-
-    # For every positions, search for polymorphism_site
-    my ( $number_of_comparable_bases, $number_of_identities,
-        $number_of_differences, $number_of_gaps, $number_of_n, $number_of_align_error, )
-        = (0) x 6;
-    for my $pos ( 1 .. $seq_legnth ) {
-        my @nt_pair = ();
-        foreach ( $first_seq, $second_seq ) {
-            my $nt = substr( $_, $pos - 1, 1 );
-            unless ( defined $nt ) {
-                $nt = '?';
-            }
-            push @nt_pair, $nt;
-        }
-        if ( $nt_pair[0] =~ /[agct]/i ) {
-            if ( $nt_pair[1] =~ /[agct]/i ) {
-                if ( $nt_pair[0] ne $nt_pair[1] ) {
-                    $number_of_differences++;
-                }
-                else {
-                    $number_of_identities++;
-                }
-                $number_of_comparable_bases++;
-            }
-            elsif ( $nt_pair[1] =~ /\-/i ) {
-                $number_of_gaps++;
-            }
-            else {
-                $number_of_n++;
-            }
-        }
-        elsif ( $nt_pair[0] =~ /\-/i ) {
-            if ( $nt_pair[1] =~ /[agct]/i ) {
-                $number_of_gaps++;
-            }
-            else {
-                $number_of_align_error++;
-            }
-        }
-        else {
-            if ( $nt_pair[1] =~ /[agct]/i ) {
-                $number_of_n++;
-            }
-            else {
-                $number_of_align_error++;
-            }
-        }
-    }
-    if ( $number_of_comparable_bases == 0 ) {
-        print Dump(
-            {   first_seq  => $first_seq,
-                second_seq => $second_seq,
-            }
-        );
-        carp "number_of_comparable_bases == 0!!\n";
-        return [
-            $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
-            $number_of_differences, $number_of_gaps,             $number_of_n,
-            $seq_legnth,            'NULL',                      'NULL',
-            'NULL',
-        ];
-    }
-    my $pi = $number_of_differences / $number_of_comparable_bases;
-
-    my $first_seq_gc = calc_gc_ratio($first_seq);
-    my $average_gc = calc_gc_ratio( $first_seq, $second_seq );
-
-    return [
-        $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
-        $number_of_differences, $number_of_gaps,             $number_of_n,
-        $number_of_align_error, $pi,                         $first_seq_gc,
-        $average_gc,
-    ];
-}
-
-sub multi_snp_site {
-    my (@seqs) = @_;
-
-    for my $seq (@seqs) {
-        _ref2str( \$seq );
-    }
-
-    my $seq_legnth = length $seqs[0];
-    my %snp_sites;
-    for my $pos ( 1 .. $seq_legnth ) {
-        my @bases = ();
-        foreach (@seqs) {
-            my $nt = substr( $_, $pos - 1, 1 );
-            push @bases, $nt;
-        }
-        if ( all { $_ =~ /[agct]/i } @bases ) {
-            if ( any { $_ ne $bases[0] } @bases ) {
-                $snp_sites{$pos} = \@bases;
-            }
-        }
-        else {
-            next;
-        }
-    }
-
-    return \%snp_sites;
-}
-
 sub single_indel_sites {
     my $seq = shift;
 
@@ -282,85 +171,6 @@ sub find_indel_set {
     $set = $set->intersect("1-$seq_length");
 
     return $set;
-}
-
-sub ref_indel_type {
-    my $ref_str    = shift;
-    my $target_str = shift;
-    my $query_str  = shift;
-
-    my $rindel_set = &find_indel_set($ref_str);
-    my $tindel_set = &find_indel_set($target_str);
-    my $qindel_set = &find_indel_set($query_str);
-
-    #print Dump {
-    #    "1rindel" => "$ref_str $rindel_set",
-    #    "2tindel" => "$target_str $tindel_set",
-    #    "3qindel" => "$query_str $qindel_set",
-    #};
-
-    # $indel_occured:
-    #   'C': complex indel
-    #   'T': occured in target seq
-    #   'Q': occured in query seq
-    #   'N': occured in other place, noindel
-    # $indel_type:
-    #   'C': complex indel
-    #   'D': deletion
-    #   'I': insertion
-    #   'N': noindel
-    my $indel_occured = "NULL";
-    my $indel_type    = "NULL";
-
-    my $in_intersect = $tindel_set->intersect($qindel_set);
-    my $in_union     = $tindel_set->union($qindel_set);
-
-    if ( $in_intersect->equal($in_union) ) {
-        $indel_occured = "N";
-        $indel_type    = "N";
-    }
-    elsif ( $rindel_set->equal($in_union) ) {
-        if ( $tindel_set->larger_than($qindel_set) ) {
-            $indel_occured = "Q";
-            $indel_type    = "I";
-        }
-        elsif ( $tindel_set->smaller_than($qindel_set) ) {
-            $indel_occured = "T";
-            $indel_type    = "I";
-        }
-        else {
-            $indel_occured = "C";
-            $indel_type    = "C";
-        }
-    }
-    elsif ( $rindel_set->equal($in_intersect) ) {
-        if ( $tindel_set->larger_than($qindel_set) ) {
-            $indel_occured = "T";
-            $indel_type    = "D";
-        }
-        elsif ( $tindel_set->smaller_than($qindel_set) ) {
-            $indel_occured = "Q";
-            $indel_type    = "D";
-        }
-        else {
-            $indel_occured = "C";
-            $indel_type    = "C";
-        }
-    }
-    elsif ( $rindel_set->larger_than($in_union) ) {
-        $indel_occured = "C";
-        $indel_type    = "C";
-    }
-    elsif ( $rindel_set->smaller_than($in_union) ) {
-        $indel_occured = "C";
-        $indel_type    = "C";
-    }
-    else {
-        $indel_occured = "C";
-        $indel_type    = "C";
-    }
-
-    return ( $indel_occured, $indel_type );
 }
 
 ##################################################
