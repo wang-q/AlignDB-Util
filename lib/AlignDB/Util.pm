@@ -29,8 +29,8 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 %EXPORT_TAGS = (
     all => [
         qw{
-            calc_gc_ratio pair_seq_stat pair_snp_sites multi_snp_site
-            single_indel_sites pair_indel_sites find_indel_set ref_indel_type ref_pair_D multi_align
+            calc_gc_ratio pair_seq_stat multi_snp_site
+            single_indel_sites find_indel_set ref_indel_type ref_pair_D multi_align
             multi_align_matrix revcom seq_length average mean median variance stddev
             read_fasta write_fasta trim_pure_dash trim_head_tail trim_outgroup trim_complex_indel
             realign_quick decode_header encode_header
@@ -186,37 +186,6 @@ sub pair_seq_stat {
     ];
 }
 
-sub pair_snp_sites {
-    my ( $first_seq, $second_seq ) = @_;
-
-    _ref2str( \$first_seq );
-    _ref2str( \$second_seq );
-
-    my $seq_legnth = length $first_seq;
-    my %snp_sites;
-
-    for my $pos ( 1 .. $seq_legnth ) {
-        my @nt_pair = ();
-        foreach ( $first_seq, $second_seq ) {
-            my $nt = substr $_, $pos - 1, 1;
-            unless ( defined $nt ) {
-                $nt = '?';
-            }
-            push @nt_pair, $nt;
-        }
-        if ( $nt_pair[0] =~ /[agct]/i ) {
-            if ( $nt_pair[1] =~ /[agct]/i ) {
-                if ( $nt_pair[0] ne $nt_pair[1] ) {
-                    $snp_sites{$pos}->{target_base} = $nt_pair[0];
-                    $snp_sites{$pos}->{query_base}  = $nt_pair[1];
-                }
-            }
-        }
-    }
-
-    return \%snp_sites;
-}
-
 sub multi_snp_site {
     my (@seqs) = @_;
 
@@ -313,100 +282,6 @@ sub find_indel_set {
     $set = $set->intersect("1-$seq_length");
 
     return $set;
-}
-
-sub pair_indel_sites {
-    my ( $first_seq, $second_seq, $defined_indel ) = @_;
-
-    _ref2str( \$first_seq );
-    _ref2str( \$second_seq );
-
-    my $indel_set = AlignDB::IntSpan->new();
-    if ( defined $defined_indel ) {
-        $indel_set->merge($defined_indel);
-    }
-    else {
-        $indel_set->merge( &find_indel_set($first_seq) );
-        $indel_set->merge( &find_indel_set($second_seq) );
-    }
-
-    my @indel_sites;
-    foreach my $span ( $indel_set->spans() ) {
-        my $indel_start  = $span->[0];
-        my $indel_end    = $span->[1];
-        my $indel_length = $indel_end - $indel_start + 1;
-
-        my $first_indel_seq  = substr( $first_seq,  $indel_start - 1, $indel_length );
-        my $second_indel_seq = substr( $second_seq, $indel_start - 1, $indel_length );
-
-        # $indel_insert:
-        #   'N': means indel occured in other place
-        #   'D': means deletion relative to first seq
-        #   'I': means insertion relative to first seq
-        # $indel_seq:
-        #   'N': use $first_indel_seq as $indel_seq
-        #   'D': use $first_indel_seq as $indel_seq
-        #   'I': use $second_indel_seq as $indel_seq
-        my $indel_insert;
-        my $indel_seq;
-        if ( $first_seq eq $second_seq ) {
-            $indel_insert = 'N';
-            $indel_seq    = $first_indel_seq;
-        }
-        elsif ( $first_seq !~ /\-/ and $second_seq !~ /\-/ ) {
-            $indel_insert = 'N';
-            $indel_seq    = $first_indel_seq;
-        }
-        else {
-            my $first_gap  = $first_indel_seq =~ tr/-/-/;
-            my $second_gap = $second_indel_seq =~ tr/-/-/;
-            if ( $first_gap < $second_gap ) {
-                $indel_insert = 'D';
-                $indel_seq    = $first_indel_seq;
-            }
-            elsif ( $first_gap > $second_gap ) {
-                $indel_insert = 'I';
-                $indel_seq    = $second_indel_seq;
-            }
-            else {
-                $indel_insert = 'N';
-                $indel_seq    = $first_indel_seq;
-            }
-        }
-
-        my $indel_gc = &calc_gc_ratio($indel_seq);
-        push @indel_sites,
-            {
-            insert => $indel_insert,
-            length => $indel_length,
-            start  => $indel_start,
-            end    => $indel_end,
-            seq    => $indel_seq,
-            gc     => $indel_gc,
-            };
-    }
-
-    my $seq_legnth = length $first_seq;
-
-    my $anterior_indel_end = 0;
-    for my $i ( 0 .. scalar @indel_sites - 1 ) {
-        my $current_indel_start = $indel_sites[$i]->{start};
-        my $current_left_extand = $current_indel_start - 1 - $anterior_indel_end;
-        my $current_indel_end   = $indel_sites[$i]->{end};
-        $anterior_indel_end = $current_indel_end;
-        $indel_sites[$i]->{left_extand} = $current_left_extand;
-    }
-
-    my $posterior_indel_start = $seq_legnth + 1;
-    for my $i ( reverse( 0 .. scalar @indel_sites - 1 ) ) {
-        my $current_indel_end    = $indel_sites[$i]->{end};
-        my $current_right_extand = $posterior_indel_start - $current_indel_end - 1;
-        my $current_indel_start  = $indel_sites[$i]->{start};
-        $posterior_indel_start = $current_indel_start;
-        $indel_sites[$i]->{right_extand} = $current_right_extand;
-    }
-
-    return \@indel_sites;
 }
 
 sub ref_indel_type {
