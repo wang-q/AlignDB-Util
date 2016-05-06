@@ -13,4 +13,6 @@ blib
 !META.json
 !LICENSE
 
+.idea
 .komodotools
+*.komodoproject

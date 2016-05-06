@@ -29,7 +29,7 @@ use vars qw(@ISA @EXPORT_OK %EXPORT_TAGS);
 %EXPORT_TAGS = (
     all => [
         qw{
-            calc_gc_ratio pair_seq_stat multi_seq_stat pair_snp_sites multi_snp_site
+            calc_gc_ratio pair_seq_stat pair_snp_sites multi_snp_site
             single_indel_sites pair_indel_sites find_indel_set ref_indel_type ref_pair_D multi_align
             multi_align_matrix revcom seq_length average mean median variance stddev
             read_fasta write_fasta trim_pure_dash trim_head_tail trim_outgroup trim_complex_indel
@@ -182,75 +182,6 @@ sub pair_seq_stat {
         $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
         $number_of_differences, $number_of_gaps,             $number_of_n,
         $number_of_align_error, $pi,                         $first_seq_gc,
-        $average_gc,
-    ];
-}
-
-sub multi_seq_stat {
-    my (@seqs) = @_;
-
-    for my $seq (@seqs) {
-        _ref2str( \$seq );
-    }
-
-    my $seq_legnth = length $seqs[0];
-
-    # For every positions, search for polymorphism_site
-    my ( $number_of_comparable_bases, $number_of_identities,
-        $number_of_differences, $number_of_gaps, $number_of_n, $number_of_align_error, )
-        = (0) x 6;
-    for my $pos ( 1 .. $seq_legnth ) {
-        my @bases = ();
-        for (@seqs) {
-            my $nt = substr( $_, $pos - 1, 1 );
-            push @bases, $nt;
-        }
-        @bases = uniq(@bases);
-
-        if ( all { $_ =~ /[agct]/i } @bases ) {
-            $number_of_comparable_bases++;
-            if ( all { $_ eq $bases[0] } @bases ) {
-                $number_of_identities++;
-            }
-            else {
-                $number_of_differences++;
-            }
-        }
-        elsif ( any { $_ eq '-' } @bases ) {
-            $number_of_gaps++;
-        }
-        else {
-            $number_of_n++;
-        }
-    }
-    if ( $number_of_comparable_bases == 0 ) {
-        print Dump { seqs => \@seqs, };
-        carp "number_of_comparable_bases == 0!!\n";
-        return [
-            $seq_legnth, $number_of_comparable_bases, $number_of_identities, $number_of_differences,
-            $number_of_gaps, $number_of_n, $seq_legnth, undef, undef, undef,
-        ];
-    }
-
-    my $combinat = Math::Combinatorics->new(
-        count => 2,
-        data  => [ 0 .. @seqs - 1 ],
-    );
-    my @all_pi;
-    while ( my ( $idx1, $idx2 ) = $combinat->next_combination ) {
-        my $stats = pair_seq_stat( $seqs[$idx1], $seqs[$idx2] );
-        my $pi = $stats->[7];
-        push @all_pi, $pi;
-    }
-    my $pi = mean(@all_pi);
-
-    my $target_gc  = calc_gc_ratio( $seqs[0] );
-    my $average_gc = calc_gc_ratio(@seqs);
-
-    return [
-        $seq_legnth,            $number_of_comparable_bases, $number_of_identities,
-        $number_of_differences, $number_of_gaps,             $number_of_n,
-        $number_of_align_error, $pi,                         $target_gc,
         $average_gc,
     ];
 }
